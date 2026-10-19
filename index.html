@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chess</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+  h1 { color: #f0c674; text-align: center; font-size: 1.6em; margin-bottom: 16px; }
+  .tabbar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .tab { padding: 10px 18px; background: #0f3460; color: #f0c674; border: 2px solid #f0c674; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; }
+  .tab.active { background: #f0c674; color: #1a1a2e; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .wrap { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .side { background: #0f3460; padding: 18px; border-radius: 12px; min-width: 280px; max-width: 400px; flex: 1; font-size: 13px; }
+  .side h3 { color: #f0c674; margin-bottom: 12px; }
+  .side p { margin-bottom: 8px; line-height: 1.5; }
+  .side button { display: block; width: 100%; text-align: left; padding: 9px 12px; margin: 5px 0; background: #16213e; color: #f0c674; border: 1px solid #f0c674; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .side button:hover { background: #1e2a4a; }
+  .side button.selected { background: #f0c674; color: #1a1a2e; font-weight: bold; }
+  .color-row { display: flex; gap: 6px; margin-bottom: 12px; }
+  .color-row button { flex: 1; text-align: center; padding: 8px 4px; margin: 0; font-size: 12px; }
+  .msg { margin-top: 10px; padding: 10px; background: #16213e; border-radius: 6px; font-size: 12px; border-left: 3px solid #2196f3; }
+  .msg.ok { border-left-color: #4caf50; color: #8bc34a; }
+  .msg.bad { border-left-color: #f44336; color: #ff7b72; }
+  .board { display: grid; grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); border: 3px solid #f0c674; border-radius: 6px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .sq { display: flex; align-items: center; justify-content: center; font-size: 44px; cursor: pointer; user-select: none; }
+  .sq.light { background: #f0d9b5; }
+  .sq.dark { background: #b58863; }
+  .sq.sel { box-shadow: inset 0 0 0 4px #f0c674; }
+  .sq.mv { box-shadow: inset 0 0 0 4px #4caf50; }
+  .sq .w { color: #fff; text-shadow: 0 0 2px #000, 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000; }
+  .sq .b { color: #1a1a2e; text-shadow: 0 0 2px #fff, 1px 1px 2px #fff, -1px -1px 2px #fff; }
+  #nameScreen { position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #0f1729, #1a1a2e, #16213e); display: flex; align-items: center; justify-content: center; }
+  .nameBox { background: #0f3460; padding: 40px 30px; border-radius: 14px; text-align: center; max-width: 380px; width: 90%; border: 1px solid rgba(240,198,116,0.3); box-shadow: 0 10px 50px rgba(0,0,0,0.5); }
+  .nameBox h2 { color: #f0c674; margin-bottom: 8px; font-size: 26px; }
+  .nameBox p { color: #8a8fa8; font-size: 13px; margin-bottom: 20px; }
+  .nameBox input { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid rgba(240,198,116,0.3); background: #16213e; color: #eee; font-size: 15px; text-align: center; }
+  .nameBox input:focus { outline: none; border-color: #f0c674; }
+  .nameBox button { width: 100%; padding: 13px; margin-top: 12px; background: #f0c674; color: #1a1a2e; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
+  .cert-wrap { max-width: 800px; margin: 20px auto; padding: 20px; background: #fff; color: #1a1a2e; border-radius: 10px; box-shadow: 0 15px 50px rgba(0,0,0,0.6); }
+  .cert { border: 8px double #c9a227; padding: 40px 30px; text-align: center; position: relative; background: #fffef8; font-family: Georgia, serif; }
+  .cert::before { content: ''; position: absolute; inset: 12px; border: 2px solid #c9a227; pointer-events: none; }
+  .cert .seal { font-size: 60px; margin-bottom: 10px; }
+  .cert h2 { font-size: 28px; color: #8b6914; letter-spacing: 4px; margin: 10px 0 6px; text-transform: uppercase; }
+  .cert .sub { color: #666; font-size: 13px; letter-spacing: 2px; margin-bottom: 20px; }
+  .cert .name { font-size: 30px; font-weight: bold; color: #1a1a2e; margin: 10px 0; border-bottom: 2px solid #c9a227; display: inline-block; padding: 0 30px 8px; min-width: 280px; }
+  .cert .reason { font-size: 14px; color: #444; line-height: 1.6; margin: 20px auto; max-width: 550px; }
+  .cert .date { margin-top: 30px; font-size: 12px; color: #666; }
+  .noprint { margin-top: 20px; text-align: center; }
+  .noprint button { padding: 10px 20px; background: #f0c674; color: #1a1a2e; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+  @media print { body * { visibility: hidden; } .cert-wrap, .cert-wrap * { visibility: visible; } .cert-wrap { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; padding: 0; } .noprint { display: none; } body { background: white; padding: 0; } }
+</style>
+</head>
+<body>
+
+<div id="nameScreen">
+  <div class="nameBox">
+    <h2>♟ Chess Master</h2>
+    <p>What's your name?</p>
+    <input id="nameIn" placeholder="Enter your name" maxlength="30" onkeypress="if(event.key==='Enter')confirmName()">
+    <button onclick="confirmName()">Start →</button>
+  </div>
+</div>
+
+<h1>♟ Chess Master</h1>
+<div class="tabbar">
+  <div class="tab active" onclick="go('coach',this)">🏆 Coach</div>
+  <div class="tab" onclick="go('friend',this)">👥 Friend</div>
+  <div class="tab" onclick="go('cert',this)">🏅 Certificate</div>
+</div>
+
+<div id="coach" class="panel active">
+  <div class="wrap">
+    <div id="cb" class="board"></div>
+    <div class="side">
+      <h3>Coach Match</h3>
+      <div style="color:#8a8fa8;font-size:12px;margin-bottom:8px">Play as:</div>
+      <div class="color-row">
+        <button id="cWhite" onclick="setCoachColor('w')">♔ White</button>
+        <button id="cBlack" onclick="setCoachColor('b')">♚ Black</button>
+      </div>
+      <div style="color:#8a8fa8;font-size:12px;margin-bottom:8px">Choose coach:</div>
+      <div id="coachBtns"></div>
+      <button onclick="newCoachGame()" style="background:#4caf50;color:#fff">New game</button>
+      <div id="coachMsg" class="msg">Pick a coach.</div>
+      <div id="coachTalk" class="msg" style="display:none"></div>
+      <div style="margin-top:15px; font-size:14px; color:#f0c674; font-weight:bold; text-align:center;">
+        Wins vs Coach: <span id="winCount">0</span> / 10
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="friend" class="panel">
+  <div class="wrap">
+    <div id="fb" class="board"></div>
+    <div class="side">
+      <h3>Play with Friend</h3>
+      <p>Two players, one board.</p>
+      <button onclick="newFriendGame()" style="background:#4caf50;color:#fff">New game</button>
+      <div id="friendMsg" class="msg">White's turn.</div>
+    </div>
+  </div>
+</div>
+
+<div id="cert" class="panel">
+  <div id="certBox"></div>
+</div>
+
+<script>
+// Safe localStorage wrapper — works even in sandboxed iframes where storage is blocked
+const store = {
+  mem: {},
+  get(key) {
+    try { return localStorage.getItem(key); }
+    catch (e) { return this.mem[key] !== undefined ? this.mem[key] : null; }
+  },
+  set(key, val) {
+    try { localStorage.setItem(key, val); }
+    catch (e) { this.mem[key] = String(val); }
+  }
+};
+
+let playerName = 'Player';
+let coachWins = parseInt(store.get('cm_coach_wins') || '0', 10);
+if (isNaN(coachWins)) coachWins = 0;
+
+function confirmName() {
+  const v = document.getElementById('nameIn').value.trim();
+  if (!v) { document.getElementById('nameIn').focus(); return; }
+  playerName = v;
+  document.getElementById('nameScreen').style.display = 'none';
+  updateWinCounter();
+}
+
+function updateWinCounter() {
+  const el = document.getElementById('winCount');
+  if (el) el.textContent = coachWins;
+}
+
+const GLYPH = {K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+const isW = p => p && p === p.toUpperCase();
+const col = p => isW(p) ? 'w' : (p ? 'b' : null);
+const F = i => i % 8;
+const R = i => Math.floor(i / 8);
+const idx = (f, r) => r * 8 + f;
+
+function fresh() {
+  return {
+    b: [
+      'R','N','B','Q','K','B','N','R',
+      'P','P','P','P','P','P','P','P',
+      '','','','','','','','',
+      '','','','','','','','',
+      '','','','','','','','',
+      '','','','','','','','',
+      'p','p','p','p','p','p','p','p',
+      'r','n','b','q','k','b','n','r'
+    ],
+    turn: 'w',
+    castle: { wK: 1, wQ: 1, bK: 1, bQ: 1 },
+    ep: null
+  };
+}
+const copy = g => ({ b: [...g.b], turn: g.turn, castle: { ...g.castle }, ep: g.ep });
+
+function pseudo(g, side) {
+  const out = [];
+  for (let i = 0; i < 64; i++) {
+    const p = g.b[i]; if (!p || col(p) !== side) continue;
+    const t = p.toLowerCase(), f = F(i), r = R(i);
+    if (t === 'p') {
+      const d = side === 'w' ? 1 : -1;
+      const start = side === 'w' ? 1 : 6;
+      const promo = side === 'w' ? 7 : 0;
+      const r1 = r + d;
+      if (r1 >= 0 && r1 < 8 && !g.b[idx(f, r1)]) {
+        addP(out, i, idx(f, r1), r1 === promo);
+        if (r === start && !g.b[idx(f, r + 2 * d)]) out.push({ from: i, to: idx(f, r + 2 * d), dbl: 1 });
+      }
+      for (const df of [-1, 1]) {
+        const nf = f + df, nr = r + d;
+        if (nf < 0 || nf > 7 || nr < 0 || nr > 7) continue;
+        const to = idx(nf, nr);
+        if (g.b[to] && col(g.b[to]) !== side) addP(out, i, to, nr === promo);
+        else if (!g.b[to] && g.ep === to) out.push({ from: i, to, ep: 1 });
+      }
+    } else if (t === 'n') {
+      for (const [df, dr] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
+        const nf = f + df, nr = r + dr; if (nf < 0 || nf > 7 || nr < 0 || nr > 7) continue;
+        const to = idx(nf, nr);
+        if (!g.b[to] || col(g.b[to]) !== side) out.push({ from: i, to });
+      }
+    } else if (t === 'b' || t === 'r' || t === 'q') {
+      const dirs = [];
+      if (t !== 'r') dirs.push([-1,-1],[-1,1],[1,-1],[1,1]);
+      if (t !== 'b') dirs.push([-1,0],[1,0],[0,-1],[0,1]);
+      for (const [df, dr] of dirs) {
+        let nf = f + df, nr = r + dr;
+        while (nf >= 0 && nf < 8 && nr >= 0 && nr < 8) {
+          const to = idx(nf, nr);
+          if (!g.b[to]) out.push({ from: i, to });
+          else { if (col(g.b[to]) !== side) out.push({ from: i, to }); break; }
+          nf += df; nr += dr;
+        }
+      }
+    } else if (t === 'k') {
+      for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) {
+        if (!df && !dr) continue;
+        const nf = f + df, nr = r + dr; if (nf < 0 || nf > 7 || nr < 0 || nr > 7) continue;
+        const to = idx(nf, nr);
+        if (!g.b[to] || col(g.b[to]) !== side) out.push({ from: i, to });
+      }
+      if (side === 'w' && i === 4) {
+        if (g.castle.wK && !g.b[5] && !g.b[6] && g.b[7] === 'R' && !atk(g,4,'b') && !atk(g,5,'b') && !atk(g,6,'b')) out.push({ from: 4, to: 6, castle: 'K' });
+        if (g.castle.wQ && !g.b[3] && !g.b[2] && !g.b[1] && g.b[0] === 'R' && !atk(g,4,'b') && !atk(g,3,'b') && !atk(g,2,'b')) out.push({ from: 4, to: 2, castle: 'Q' });
+      }
+      if (side === 'b' && i === 60) {
+        if (g.castle.bK && !g.b[61] && !g.b[62] && g.b[63] === 'r' && !atk(g,60,'w') && !atk(g,61,'w') && !atk(g,62,'w')) out.push({ from: 60, to: 62, castle: 'K' });
+        if (g.castle.bQ && !g.b[59] && !g.b[58] && !g.b[57] && g.b[56] === 'r' && !atk(g,60,'w') && !atk(g,59,'w') && !atk(g,58,'w')) out.push({ from: 60, to: 58, castle: 'Q' });
+      }
+    }
+  }
+  return out;
+}
+function addP(out, from, to, promo) {
+  if (promo) for (const p of ['q','r','b','n']) out.push({ from, to, promo: p });
+  else out.push({ from, to });
+}
+function atk(g, sq, by) {
+  const f = F(sq), r = R(sq);
+  const pd = by === 'w' ? -1 : 1;
+  for (const df of [-1, 1]) {
+    const pf = f + df, pr = r + pd;
+    if (pf >= 0 && pf < 8 && pr >= 0 && pr < 8) {
+      const p = g.b[idx(pf, pr)];
+      if (p === (by === 'w' ? 'P' : 'p')) return 1;
+    }
+  }
+  for (const [df, dr] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
+    const nf = f + df, nr = r + dr;
+    if (nf >= 0 && nf < 8 && nr >= 0 && nr < 8) {
+      const p = g.b[idx(nf, nr)];
+      if (p === (by === 'w' ? 'N' : 'n')) return 1;
+    }
+  }
+  for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) {
+    if (!df && !dr) continue;
+    const nf = f + df, nr = r + dr;
+    if (nf >= 0 && nf < 8 && nr >= 0 && nr < 8) {
+      const p = g.b[idx(nf, nr)];
+      if (p === (by === 'w' ? 'K' : 'k')) return 1;
+    }
+  }
+  const slide = (dirs, types) => {
+    for (const [df, dr] of dirs) {
+      let nf = f + df, nr = r + dr;
+      while (nf >= 0 && nf < 8 && nr >= 0 && nr < 8) {
+        const p = g.b[idx(nf, nr)];
+        if (p) { if (col(p) === by && types.includes(p.toLowerCase())) return 1; break; }
+        nf += df; nr += dr;
+      }
+    }
+    return 0;
+  };
+  if (slide([[-1,0],[1,0],[0,-1],[0,1]], ['r','q'])) return 1;
+  if (slide([[-1,-1],[-1,1],[1,-1],[1,1]], ['b','q'])) return 1;
+  return 0;
+}
+function move(g, m) {
+  const ng = copy(g);
+  const p = ng.b[m.from];
+  if (m.ep) ng.b[idx(F(m.from), R(m.from))] = '';
+  ng.b[m.to] = m.promo ? (isW(p) ? m.promo.toUpperCase() : m.promo) : p;
+  ng.b[m.from] = '';
+  if (m.castle === 'K') { if (g.turn === 'w') { ng.b[5] = 'R'; ng.b[7] = ''; } else { ng.b[61] = 'r'; ng.b[63] = ''; } }
+  if (m.castle === 'Q') { if (g.turn === 'w') { ng.b[3] = 'R'; ng.b[0] = ''; } else { ng.b[59] = 'r'; ng.b[56] = ''; } }
+  const t = p.toLowerCase();
+  if (t === 'k') { if (g.turn === 'w') { ng.castle.wK = ng.castle.wQ = 0; } else { ng.castle.bK = ng.castle.bQ = 0; } }
+  if (m.from === 7) ng.castle.wK = 0;
+  if (m.from === 0) ng.castle.wQ = 0;
+  if (m.from === 63) ng.castle.bK = 0;
+  if (m.from === 56) ng.castle.bQ = 0;
+  ng.ep = null;
+  if (t === 'p' && m.dbl) ng.ep = (m.from + m.to) / 2;
+  ng.turn = g.turn === 'w' ? 'b' : 'w';
+  return ng;
+}
+function kingSq(g, side) {
+  const k = side === 'w' ? 'K' : 'k';
+  for (let i = 0; i < 64; i++) if (g.b[i] === k) return i;
+  return -1;
+}
+function inCheck(g, side) {
+  const k = kingSq(g, side);
+  return k >= 0 && atk(g, k, side === 'w' ? 'b' : 'w');
+}
+function legal(g, side) { return pseudo(g, side).filter(m => !inCheck(move(g, m), side)); }
+function mate(g, side) { return inCheck(g, side) && legal(g, side).length === 0; }
+function stale(g, side) { return !inCheck(g, side) && legal(g, side).length === 0; }
+
+function draw(el, g, sel, moves, onclick, flipped) {
+  if (!el || !g) return;
+  el.innerHTML = '';
+  const order = [];
+  if (flipped) {
+    for (let r = 0; r < 8; r++) for (let f = 7; f >= 0; f--) order.push(idx(f, r));
+  } else {
+    for (let r = 7; r >= 0; r--) for (let f = 0; f < 8; f++) order.push(idx(f, r));
+  }
+  for (const i of order) {
+    const sq = document.createElement('div');
+    sq.className = 'sq ' + ((F(i) + R(i)) % 2 === 0 ? 'light' : 'dark');
+    const p = g.b[i];
+    if (p) sq.innerHTML = '<span class="' + (isW(p) ? 'w' : 'b') + '">' + GLYPH[p] + '</span>';
+    if (sel === i) sq.classList.add('sel');
+    if (moves && moves.some(m => m.from === sel && m.to === i)) sq.classList.add('mv');
+    sq.onclick = () => onclick(i);
+    el.appendChild(sq);
+  }
+}
+
+function go(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  const panel = document.getElementById(id);
+  if (panel) panel.classList.add('active');
+  if (id === 'cert') renderCert();
+}
+
+/* COACH */
+const COACHES = {
+  magnus: { name: 'Magnus', emoji: '🇳🇴', d: 2, lines: ["Let's play.", 'GG.', 'Well played.'] },
+  gukesh: { name: 'Gukesh', emoji: '🇮🇳', d: 2, lines: ['Namaste!', 'Champion!', 'Respect.'] },
+  hikaru: { name: 'Hikaru', emoji: '🇺🇸', d: 2, lines: ['YO!', 'GG!', 'Chat malding.'] },
+  ding:   { name: 'Ding',   emoji: '🇨🇳', d: 2, lines: ['Hello.', 'Thank you.', 'Well done.'] },
+  pragg:  { name: 'Pragg',  emoji: '🇮🇳', d: 2, lines: ['Hi!', 'GG!', 'Amazing!'] }
+};
+let cGame = null, cSel = -1, cMoves = [], cBusy = false, curCoach = 'magnus', coachColor = 'w';
+let flipped = false;
+
+function setCoachColor(c) {
+  coachColor = c;
+  const w = document.getElementById('cWhite');
+  const b = document.getElementById('cBlack');
+  if (w) w.classList.remove('selected');
+  if (b) b.classList.remove('selected');
+  const active = document.getElementById(c === 'w' ? 'cWhite' : 'cBlack');
+  if (active) active.classList.add('selected');
+  newCoachGame();
+}
+
+function initCoachBtns() {
+  const box = document.getElementById('coachBtns');
+  if (!box) return;
+  box.innerHTML = '';
+  Object.entries(COACHES).forEach(([k, c]) => {
+    const btn = document.createElement('button');
+    btn.textContent = c.emoji + ' ' + c.name;
+    btn.onclick = () => {
+      curCoach = k;
+      document.querySelectorAll('#coachBtns button').forEach(x => x.classList.remove('selected'));
+      btn.classList.add('selected');
+      newCoachGame();
+    };
+    box.appendChild(btn);
+  });
+}
+
+function sayLine(i) {
+  const c = COACHES[curCoach];
+  const el = document.getElementById('coachTalk');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = c.emoji + ' ' + c.name + ': ' + c.lines[i || 0];
+}
+
+function drawCB() {
+  const el = document.getElementById('cb');
+  if (!el || !cGame) return;
+  const myTurn = cGame.turn === coachColor;
+  draw(el, cGame, cSel, cMoves, onCoach, flipped);
+  const msg = document.getElementById('coachMsg');
+  if (msg) msg.textContent = myTurn
+    ? 'Your turn (' + (coachColor === 'w' ? 'White' : 'Black') + ').'
+    : COACHES[curCoach].name + ' is thinking...';
+}
+
+function onCoach(i) {
+  if (cBusy || !cGame || cGame.turn !== coachColor) return;
+  if (mate(cGame, coachColor) || stale(cGame, coachColor)) return;
+  if (cSel >= 0 && cMoves.some(m => m.to === i)) {
+    const m = cMoves.find(x => x.to === i);
+    cGame = move(cGame, m);
+    cSel = -1; cMoves = [];
+    drawCB();
+    if (mate(cGame, coachColor === 'w' ? 'b' : 'w')) {
+      sayLine(1);
+      const msg = document.getElementById('coachMsg');
+      if (msg) msg.textContent = 'Checkmate! You win! 🎉';
+      coachWins++;
+      store.set('cm_coach_wins', coachWins);
+      updateWinCounter();
+      return;
+    }
+    cBusy = true;
+    setTimeout(botPlay, 400);
+    return;
+  }
+  const p = cGame.b[i];
+  if (p && col(p) === coachColor) {
+    cSel = i;
+    cMoves = legal(cGame, coachColor).filter(m => m.from === i);
+    drawCB();
+  } else { cSel = -1; cMoves = []; drawCB(); }
+}
+
+function botPlay() {
+  if (!cGame) { cBusy = false; return; }
+  if (mate(cGame, cGame.turn) || stale(cGame, cGame.turn)) { cBusy = false; return; }
+  const best = bestMove(cGame, COACHES[curCoach].d);
+  if (best) {
+    cGame = move(cGame, best);
+    drawCB();
+    if (mate(cGame, coachColor)) {
+      sayLine(1);
+      const msg = document.getElementById('coachMsg');
+      if (msg) msg.textContent = 'Checkmate! Coach wins.';
+    }
+  }
+  cBusy = false;
+}
+
+function newCoachGame() {
+  cGame = fresh();
+  cSel = -1; cMoves = []; cBusy = false;
+  flipped = coachColor === 'b';
+  drawCB();
+  sayLine(0);
+  if (coachColor === 'b') { cBusy = true; setTimeout(botPlay, 500); }
+}
+
+const VAL = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+function evalG(g) {
+  if (mate(g, g.turn)) return g.turn === 'w' ? -99999 : 99999;
+  if (stale(g, g.turn)) return 0;
+  let s = 0;
+  for (const p of g.b) if (p) s += (isW(p) ? 1 : -1) * (VAL[p.toLowerCase()] || 0);
+  return s;
+}
+function bestMove(g, d) {
+  const ms = legal(g, g.turn);
+  if (!ms.length) return null;
+  if (d <= 0) return ms[Math.floor(Math.random() * ms.length)];
+  let best = null, bestScore = g.turn === 'b' ? Infinity : -Infinity;
+  for (const m of ms) {
+    const sc = minimax(move(g, m), d - 1);
+    if (g.turn === 'b' ? sc < bestScore : sc > bestScore) { bestScore = sc; best = m; }
+  }
+  return best;
+}
+function minimax(g, d) {
+  if (d === 0 || mate(g, g.turn) || stale(g, g.turn)) return evalG(g);
+  const ms = legal(g, g.turn);
+  if (!ms.length) return evalG(g);
+  let best = g.turn === 'b' ? Infinity : -Infinity;
+  for (const m of ms) {
+    const sc = minimax(move(g, m), d - 1);
+    if (g.turn === 'b' ? sc < best : sc > best) best = sc;
+  }
+  return best;
+}
+
+/* FRIEND */
+let fGame = null, fSel = -1, fMoves = [];
+function newFriendGame() {
+  fGame = fresh(); fSel = -1; fMoves = [];
+  drawFB();
+  const msg = document.getElementById('friendMsg');
+  if (msg) msg.textContent = "White's turn.";
+}
+function drawFB() {
+  const el = document.getElementById('fb');
+  if (!el || !fGame) return;
+  draw(el, fGame, fSel, fMoves, onFriend);
+}
+function onFriend(i) {
+  if (!fGame) return;
+  if (mate(fGame, fGame.turn) || stale(fGame, fGame.turn)) return;
+  if (fSel >= 0 && fMoves.some(m => m.to === i)) {
+    const m = fMoves.find(x => x.to === i);
+    fGame = move(fGame, m);
+    fSel = -1; fMoves = [];
+    drawFB();
+    const msg = document.getElementById('friendMsg');
+    if (!msg) return;
+    if (mate(fGame, fGame.turn)) msg.textContent = (fGame.turn === 'w' ? 'Black' : 'White') + ' wins! 🏆';
+    else if (stale(fGame, fGame.turn)) msg.textContent = 'Draw!';
+    else if (inCheck(fGame, fGame.turn)) msg.textContent = (fGame.turn === 'w' ? 'White' : 'Black') + ' in check!';
+    else msg.textContent = (fGame.turn === 'w' ? "White's" : "Black's") + ' turn.';
+    return;
+  }
+  const p = fGame.b[i];
+  if (p && col(p) === fGame.turn) {
+    fSel = i;
+    fMoves = legal(fGame, fGame.turn).filter(m => m.from === i);
+    drawFB();
+  } else { fSel = -1; fMoves = []; drawFB(); }
+}
+
+/* CERTIFICATE */
+function renderCert() {
+  const box = document.getElementById('certBox');
+  if (!box) return;
+  if (coachWins < 10) {
+    box.innerHTML = `
+      <div class="cert-wrap"><div class="cert">
+        <div class="seal">🔒</div>
+        <h2>Certificate Locked</h2>
+        <div class="sub">BEAT THE COACH 10 TIMES TO UNLOCK</div>
+        <p class="reason" style="margin-top:20px">
+          You have beaten the coach <strong>${coachWins} / 10</strong> times.<br><br>
+          Win ${10 - coachWins} more time(s) to claim your Certificate!
+        </p>
+        <div class="noprint">
+          <button onclick="document.querySelectorAll('.tab')[0].click()">🏆 Go to Coach</button>
+        </div>
+      </div></div>`;
+    return;
+  }
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const id = 'CM-' + Date.now().toString(36).toUpperCase();
+  const colorEmoji = coachColor === 'w' ? '♔' : '♚';
+  const colorText = coachColor === 'w' ? 'White' : 'Black';
+  box.innerHTML = `
+    <div class="cert-wrap"><div class="cert">
+      <div class="seal">🏆</div>
+      <h2>Certificate of Achievement</h2>
+      <div class="sub">CHESS MASTER</div>
+      <p class="reason" style="margin-top:20px">This certificate is proudly presented to</p>
+      <div class="name">${playerName}</div>
+      <p class="reason">
+        Played as <strong>${colorEmoji} ${colorText}</strong><br><br>
+        For successfully defeating the Chess Master Coaches <strong>10 times</strong> with dedication, patience, and tactical brilliance.
+      </p>
+      <div style="display:flex;justify-content:space-around;margin-top:40px;font-size:14px;">
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center;">
+          <div style="font-style:italic;font-size:22px;color:#1a1a2e;font-family:'Brush Script MT',cursive;">Hamid</div>
+          <div style="font-size:12px;color:#666;margin-top:4px;">Signature</div>
+        </div>
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center;">
+          <div style="font-size:13px;color:#333;">Chess Master Academy</div>
+          <div style="font-size:12px;color:#666;margin-top:4px;">Issued by</div>
+        </div>
+      </div>
+      <div class="date">Awarded on ${today} · ID: ${id}</div>
+    </div>
+    <div class="noprint"><button onclick="window.print()">🖨 Print / Save as PDF</button></div>
+    </div>`;
+}
+
+// INIT
+function initApp() {
+  try { initCoachBtns(); } catch(e) { console.error('initCoachBtns:', e); }
+  try { setCoachColor('w'); } catch(e) { console.error('setCoachColor:', e); }
+  try { newFriendGame(); } catch(e) { console.error('newFriendGame:', e); }
+  try { updateWinCounter(); } catch(e) { console.error('updateWinCounter:', e); }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+</script>
+</body>
+</html>
